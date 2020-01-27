@@ -1,4 +1,4 @@
-// Copyright © 2019 The Things Network Foundation, The Things Industries B.V.
+// Copyright © 2020 The Things Network Foundation, The Things Industries B.V.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -150,6 +150,42 @@ class Marshaler {
     }
 
     return paths
+  }
+
+  /**
+   * Produces a list of paths.
+   * Note: only the **deepest** possible fields are added to the resulting paths list.
+   *
+   * @example
+   * const paths = FieldMask.pathsFromPatch({field1: { field2: { field3: ... } }, field4: ...})
+   * // paths = [['field1', 'field2', 'field3'], ['field4']]
+   *
+   * @example
+   * const paths = FieldMask.pathsFromPatch({field1: ['value1', {field2: 'value2'}]})
+   * // paths = [['field1']]
+   *
+   * @param {Object} patch - The patch object to generate paths from
+   * @returns {Array} - A list of paths contained in the `patch` object.
+   */
+  static pathsFromPatch(patch = {}) {
+    const result = []
+
+    traverse(patch).forEach(function(_) {
+      // `this` points to the `traverse` context
+      // eslint-disable-next-next no-invalid-this
+      const { node, path, isLeaf, level, update } = this
+
+      if (Array.isArray(node)) {
+        result.push(path.join('.'))
+
+        // Do not recurse into array items.
+        update(undefined, true)
+      } else if (level > 0 && isLeaf) {
+        result.push(path)
+      }
+    })
+
+    return result
   }
 
   /** This function will convert a paths object to a proper field mask.
