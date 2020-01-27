@@ -108,7 +108,7 @@ export async function makeRequests(
   operation,
   requestTree,
   params,
-  payload,
+  payload = {},
   ignoreNotFound = false,
 ) {
   const isCreate = operation === 'create'
@@ -136,6 +136,50 @@ export async function makeRequests(
 
       return { ...res, hasErrored: true, error }
     }
+  }
+
+  // Split the end device payload per component.
+  function splitPayload(payload, base = {}, direction, component) {
+    const { end_device } = payload
+
+    if (!Boolean(end_device)) {
+      return {}
+    }
+
+    const paths = Marshaler.pathsFromPatch(end_device)
+    const device = traverse(end_device)
+    const result = traverse(base)
+    const retrieveIndex = direction === 'get' ? 0 : 1
+
+    for (const path of paths) {
+      // Look up the current path in the device entity map
+      const subtree =
+        traverse(deviceEntityMap).get(path) || traverse(deviceEntityMap).get([path[0]])
+
+      if (!subtree) {
+        throw new Error(`Invalid or unknown field mask path used: ${path}`)
+      }
+
+      const definition = '_root' in subtree ? subtree._root[retrieveIndex] : subtree[retrieveIndex]
+
+      const map = function(currentComponent, path) {
+        if (component === currentComponent) {
+          result.set(path, device.get(path))
+        }
+      }
+
+      if (definition) {
+        if (definition instanceof Array) {
+          for (const comp of definition) {
+            map(comp, path)
+          }
+        } else {
+          map(definition, path)
+        }
+      }
+    }
+
+    return Marshaler.payload('end_device', result.value)
   }
 
   const requests = new Array(3)
@@ -180,12 +224,22 @@ export async function makeRequests(
     } else {
       func = 'Get'
     }
+
+    const { end_device = {} } = payload
+
+    const requestPayload = splitPayload(
+      payload,
+      isCreate ? { ids: end_device.ids } : {},
+      isCreate || isSet ? 'set' : 'get',
+      'is',
+    )
+
     result[3] = await requestWrapper(
       api.EndDeviceRegistry[func],
       params,
       'is',
       {
-        ...payload,
+        ...requestPayload,
         ...Marshaler.pathsToFieldMask(requestTree.is),
       },
       false,
@@ -204,19 +258,19 @@ export async function makeRequests(
   // Compose an array of possible api calls to NS, AS, JS
   if (stackConfig.isComponentAvailable('ns') && 'ns' in requestTree) {
     requests[0] = requestWrapper(api.NsEndDeviceRegistry[rpcFunction], params, 'ns', {
-      ...payload,
+      ...splitPayload(payload, {}, 'set', 'ns'),
       ...Marshaler.pathsToFieldMask(requestTree.ns),
     })
   }
   if (stackConfig.isComponentAvailable('as') && 'as' in requestTree) {
     requests[1] = requestWrapper(api.AsEndDeviceRegistry[rpcFunction], params, 'as', {
-      ...payload,
+      ...splitPayload(payload, {}, 'set', 'as'),
       ...Marshaler.pathsToFieldMask(requestTree.as),
     })
   }
   if (stackConfig.isComponentAvailable('js') && 'js' in requestTree) {
     requests[2] = requestWrapper(api.JsEndDeviceRegistry[rpcFunction], params, 'js', {
-      ...payload,
+      ...splitPayload(payload, {}, 'set', 'js'),
       ...Marshaler.pathsToFieldMask(requestTree.js),
     })
   }
