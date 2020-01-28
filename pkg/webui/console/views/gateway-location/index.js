@@ -31,11 +31,7 @@ import { attachPromise } from '../../store/actions/lib'
 import { selectSelectedGateway, selectSelectedGatewayId } from '../../store/selectors/gateways'
 import { mayViewOrEditGatewayLocation } from '../../lib/feature-checks'
 
-import {
-  latitude as latitudeRegexp,
-  longitude as longitudeRegexp,
-  int32 as int32Regexp,
-} from '../../lib/regexp'
+import { latitude as latitudeRegexp, longitude as longitudeRegexp } from '../../lib/regexp'
 import PropTypes from '../../../lib/prop-types'
 
 const m = defineMessages({
@@ -43,14 +39,18 @@ const m = defineMessages({
 })
 
 const validationSchema = Yup.object().shape({
-  latitude: Yup.string()
-    .required(sharedMessages.validateRequired)
-    .matches(latitudeRegexp, sharedMessages.validateLatLong),
-  longitude: Yup.string()
-    .required(sharedMessages.validateRequired)
-    .matches(longitudeRegexp, sharedMessages.validateLatLong),
-  altitude: Yup.string()
-    .matches(int32Regexp, sharedMessages.validateInt32)
+  latitude: Yup.number()
+    .test('is-valid-latitude', sharedMessages.validateLatLong, value =>
+      latitudeRegexp.test(String(value)),
+    )
+    .required(sharedMessages.validateRequired),
+  longitude: Yup.number()
+    .test('is-valid-longitude', sharedMessages.validateLatLong, value =>
+      longitudeRegexp.test(String(value)),
+    )
+    .required(sharedMessages.validateRequired),
+  altitude: Yup.number()
+    .integer(sharedMessages.validateInt32)
     .required(sharedMessages.validateRequired),
 })
 
