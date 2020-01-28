@@ -112,10 +112,9 @@ class LocationForm extends Component {
 
   render() {
     const { initialValues, formTitle, validationSchema } = this.props
+    const entryExists = initialValues.latitude || initialValues.altitude || initialValues.longitude
 
     const { error } = this.state
-
-    const entryExists = initialValues.latitude && initialValues.altitude && initialValues.longitude
 
     return (
       <React.Fragment>
