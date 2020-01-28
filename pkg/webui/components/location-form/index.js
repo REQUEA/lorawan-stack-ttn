@@ -59,11 +59,7 @@ class LocationForm extends Component {
   }
 
   static defaultProps = {
-    initialValues: {
-      latitude: undefined,
-      longitude: undefined,
-      altitude: undefined,
-    },
+    initialValues: undefined,
   }
 
   constructor(props) {
@@ -114,10 +110,18 @@ class LocationForm extends Component {
   }
 
   render() {
-    const { initialValues, formTitle, validationSchema } = this.props
-    const entryExists = initialValues.latitude || initialValues.altitude || initialValues.longitude
-
+    const { initialValues: location, formTitle, validationSchema } = this.props
     const { error } = this.state
+
+    const entryExists = Boolean(location) && location !== null
+    let initialValues = location
+    if (entryExists) {
+      initialValues = {
+        latitude: location.latitude || 0,
+        longitude: location.longitude || 0,
+        altitude: location.altitude || 0,
+      }
+    }
 
     return (
       <React.Fragment>
